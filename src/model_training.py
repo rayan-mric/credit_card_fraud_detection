@@ -1,99 +1,129 @@
-import os
 import joblib
-import pandas as pd
 
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import train_test_split
 from imblearn.pipeline import Pipeline as ImbPipeline
 from imblearn.over_sampling import SMOTE
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+)
 
-RANDOM_STATE = 42
-TEST_SIZE = 0.20
-
-
-def load_data(path):
-    """Load the cleaned dataset."""
-    return pd.read_csv(path)
-
-
-def prepare_data(df):
-    """Separate features and target and split the dataset."""
-    X = df.drop("Class", axis=1)
-    y = df["Class"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y
-    )
-
-    return X_train, X_test, y_train, y_test
+from src.config import (
+    RANDOM_STATE,
+    MODELS_DIR,
+)
 
 
 def create_models():
-    """Create the supervised fraud detection models."""
+    """
+    Create supervised fraud detection models.
+
+    SMOTE is inside the pipeline so it is applied only
+    to the training data.
+    """
 
     models = {
+
         "Logistic Regression": ImbPipeline(
             steps=[
-                ("scaler", StandardScaler()),
-                ("smote", SMOTE(random_state=RANDOM_STATE)),
+                (
+                    "scaler",
+                    StandardScaler()
+                ),
+
+                (
+                    "smote",
+                    SMOTE(
+                        random_state=RANDOM_STATE
+                    )
+                ),
+
                 (
                     "model",
                     LogisticRegression(
                         max_iter=1000,
-                        random_state=RANDOM_STATE
+                        random_state=RANDOM_STATE,
+                        n_jobs=-1,
                     )
-                )
+                ),
             ]
         ),
 
         "Random Forest": ImbPipeline(
             steps=[
-                ("smote", SMOTE(random_state=RANDOM_STATE)),
+                (
+                    "scaler",
+                    StandardScaler()
+                ),
+
+                (
+                    "smote",
+                    SMOTE(
+                        random_state=RANDOM_STATE
+                    )
+                ),
+
                 (
                     "model",
                     RandomForestClassifier(
                         n_estimators=100,
                         random_state=RANDOM_STATE,
-                        n_jobs=-1
+                        n_jobs=-1,
+                        class_weight=None,
                     )
-                )
+                ),
             ]
         ),
 
         "Gradient Boosting": ImbPipeline(
             steps=[
-                ("smote", SMOTE(random_state=RANDOM_STATE)),
+                (
+                    "scaler",
+                    StandardScaler()
+                ),
+
+                (
+                    "smote",
+                    SMOTE(
+                        random_state=RANDOM_STATE
+                    )
+                ),
+
                 (
                     "model",
                     GradientBoostingClassifier(
-                        random_state=RANDOM_STATE
+                        n_estimators=100,
+                        learning_rate=0.1,
+                        max_depth=3,
+                        random_state=RANDOM_STATE,
                     )
-                )
+                ),
             ]
-        )
+        ),
     }
 
     return models
 
 
 def train_models(X_train, y_train):
-    """Train all supervised models."""
+    """Train all models."""
+
     models = create_models()
 
     trained_models = {}
 
     for name, model in models.items():
-        print(f"\nTraining {name}...")
 
-        model.fit(X_train, y_train)
+        print("\n" + "=" * 50)
+        print(f"Training {name}")
+        print("=" * 50)
+
+        model.fit(
+            X_train,
+            y_train
+        )
 
         trained_models[name] = model
 
@@ -103,38 +133,32 @@ def train_models(X_train, y_train):
 
 
 def save_models(models):
-    """Save trained models to the models directory."""
-    os.makedirs("models", exist_ok=True)
+    """Save trained models."""
+
+    MODELS_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    saved_paths = {}
 
     for name, model in models.items():
-        filename = name.lower().replace(" ", "_") + ".pkl"
-        path = os.path.join("models", filename)
 
-        joblib.dump(model, path)
+        filename = (
+            name.lower()
+            .replace(" ", "_")
+            + ".pkl"
+        )
+
+        path = MODELS_DIR / filename
+
+        joblib.dump(
+            model,
+            path
+        )
+
+        saved_paths[name] = path
 
         print(f"Saved: {path}")
 
-
-def main():
-    print("\n==============================")
-    print("MODEL TRAINING")
-    print("==============================")
-
-    df = load_data("data/processed/cleaned.csv")
-
-    X_train, X_test, y_train, y_test = prepare_data(df)
-
-    print(f"\nTraining samples: {len(X_train)}")
-    print(f"Testing samples: {len(X_test)}")
-    print(f"Training fraud cases: {y_train.sum()}")
-    print(f"Testing fraud cases: {y_test.sum()}")
-
-    models = train_models(X_train, y_train)
-
-    save_models(models)
-
-    return models, X_train, X_test, y_train, y_test
-
-
-if __name__ == "__main__":
-    main()
+    return saved_paths
