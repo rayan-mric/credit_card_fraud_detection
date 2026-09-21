@@ -1,146 +1,188 @@
-import os
+from src.config import (
+    RAW_DATA_PATH,
+    PROCESSED_DATA_PATH,
+    METRICS_DIR,
+    RANDOM_STATE,
+    create_directories,
+)
 
 from src.data_preprocessing import (
     load_data,
     preprocess,
-    split_data
+    split_data,
+    save_cleaned_data,
 )
 
 from src.model_training import (
-    create_models,
     train_models,
-    save_models
+    save_models,
 )
 
 from src.evaluation import (
     evaluate_model,
+    print_results,
     save_results,
-    print_results
 )
-
-
-DATA_PATH = "data/raw/creditcard.csv"
-PROCESSED_PATH = "data/processed/cleaned.csv"
-
-
-def ensure_directories():
-    """Create required project directories."""
-
-    directories = [
-        "data/processed",
-        "outputs/charts",
-        "outputs/metrics",
-        "outputs/reports",
-        "models"
-    ]
-
-    for directory in directories:
-        os.makedirs(directory, exist_ok=True)
 
 
 def main():
 
-    print("\n==========================================")
-    print("     CREDIT CARD FRAUD DETECTION")
-    print("==========================================\n")
+    print("\n")
+    print("=" * 60)
+    print("        CREDIT CARD FRAUD DETECTION")
+    print("=" * 60)
 
-    ensure_directories()
+    # --------------------------------------------------
+    # STEP 1
+    # --------------------------------------------------
 
-    # ======================================
-    # STEP 1: LOAD DATA
-    # ======================================
+    print("\nSTEP 1: Creating project directories...")
 
-    print("STEP 1: Loading dataset...")
+    create_directories()
 
-    df = load_data(DATA_PATH)
+    # --------------------------------------------------
+    # STEP 2
+    # --------------------------------------------------
 
-    print(f"Dataset shape: {df.shape}")
+    print("\nSTEP 2: Loading dataset...")
 
-    # ======================================
-    # STEP 2: DATA PREPROCESSING
-    # ======================================
+    df = load_data(
+        RAW_DATA_PATH
+    )
 
-    print("\nSTEP 2: Preprocessing data...")
+    print(
+        f"Dataset shape: {df.shape}"
+    )
+
+    print(
+        f"Fraud transactions: "
+        f"{df['Class'].sum():,}"
+    )
+
+    print(
+        f"Normal transactions: "
+        f"{(df['Class'] == 0).sum():,}"
+    )
+
+    # --------------------------------------------------
+    # STEP 3
+    # --------------------------------------------------
+
+    print("\nSTEP 3: Cleaning dataset...")
 
     df = preprocess(df)
 
-    df.to_csv(
-        PROCESSED_PATH,
-        index=False
+    save_cleaned_data(
+        df,
+        PROCESSED_DATA_PATH
     )
 
-    print(f"Cleaned dataset saved to: {PROCESSED_PATH}")
+    # --------------------------------------------------
+    # STEP 4
+    # --------------------------------------------------
 
-    # ======================================
-    # STEP 3: TRAIN / TEST SPLIT
-    # ======================================
+    print("\nSTEP 4: Splitting dataset...")
 
-    print("\nSTEP 3: Splitting dataset...")
+    (
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+    ) = split_data(df)
 
-    X_train, X_test, y_train, y_test = split_data(df)
+    print(
+        f"Training samples: "
+        f"{len(X_train):,}"
+    )
 
-    print(f"Training samples: {len(X_train)}")
-    print(f"Testing samples: {len(X_test)}")
-    print(f"Training fraud cases: {y_train.sum()}")
-    print(f"Testing fraud cases: {y_test.sum()}")
+    print(
+        f"Testing samples: "
+        f"{len(X_test):,}"
+    )
 
-    # ======================================
-    # STEP 4: TRAIN MODELS
-    # ======================================
+    print(
+        f"Training fraud cases: "
+        f"{y_train.sum():,}"
+    )
 
-    print("\nSTEP 4: Training models...")
+    print(
+        f"Testing fraud cases: "
+        f"{y_test.sum():,}"
+    )
+
+    # --------------------------------------------------
+    # STEP 5
+    # --------------------------------------------------
+
+    print("\nSTEP 5: Training models...")
 
     models = train_models(
         X_train,
         y_train
     )
 
-    # ======================================
-    # STEP 5: SAVE MODELS
-    # ======================================
+    # --------------------------------------------------
+    # STEP 6
+    # --------------------------------------------------
 
-    print("\nSTEP 5: Saving models...")
+    print("\nSTEP 6: Saving trained models...")
 
-    save_models(models)
+    save_models(
+        models
+    )
 
-    # ======================================
-    # STEP 6: EVALUATE MODELS
-    # ======================================
+    # --------------------------------------------------
+    # STEP 7
+    # --------------------------------------------------
 
-    print("\nSTEP 6: Evaluating models...")
+    print("\nSTEP 7: Evaluating models...")
 
     results = {}
 
     for model_name, model in models.items():
 
+        print(
+            f"\nEvaluating {model_name}..."
+        )
+
         results[model_name] = evaluate_model(
             model,
             X_test,
-            y_test
+            y_test,
         )
 
-    # ======================================
-    # STEP 7: DISPLAY RESULTS
-    # ======================================
+    # --------------------------------------------------
+    # STEP 8
+    # --------------------------------------------------
 
-    print("\nSTEP 7: Model results")
+    print("\nSTEP 8: Model results...")
 
-    print_results(results)
+    print_results(
+        results
+    )
 
-    # ======================================
-    # STEP 8: SAVE RESULTS
-    # ======================================
+    # --------------------------------------------------
+    # STEP 9
+    # --------------------------------------------------
 
-    print("\nSTEP 8: Saving evaluation results...")
+    print("\nSTEP 9: Saving model comparison...")
 
-    results_df = save_results(results)
+    comparison = save_results(
+        results,
+        METRICS_DIR / "model_comparison.csv"
+    )
 
-    print("\n==========================================")
+    print("\n")
+    print("=" * 60)
     print("PIPELINE COMPLETED SUCCESSFULLY")
-    print("==========================================")
+    print("=" * 60)
 
     print("\nModel comparison:")
-    print(results_df.to_string(index=False))
+    print(
+        comparison.to_string(
+            index=False
+        )
+    )
 
 
 if __name__ == "__main__":

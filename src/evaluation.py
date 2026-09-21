@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 
 from sklearn.metrics import (
@@ -8,53 +7,60 @@ from sklearn.metrics import (
     roc_auc_score,
     average_precision_score,
     confusion_matrix,
-    classification_report
-)
-
-from src.model_training import (
-    load_data,
-    prepare_data,
-    train_models
 )
 
 
-def evaluate_model(model, X_test, y_test):
-    """Evaluate a single fraud detection model."""
+def evaluate_model(
+    model,
+    X_test,
+    y_test,
+    threshold=0.50
+):
+    """
+    Evaluate a trained model.
 
-    predictions = model.predict(X_test)
-    probabilities = model.predict_proba(X_test)[:, 1]
+    The default classification threshold is 0.50.
+    """
+
+    probabilities = model.predict_proba(
+        X_test
+    )[:, 1]
+
+    predictions = (
+        probabilities >= threshold
+    ).astype(int)
 
     precision = precision_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
     recall = recall_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
     f1 = f1_score(
         y_test,
         predictions,
-        zero_division=0
+        zero_division=0,
     )
 
     roc_auc = roc_auc_score(
         y_test,
-        probabilities
+        probabilities,
     )
 
     pr_auc = average_precision_score(
         y_test,
-        probabilities
+        probabilities,
     )
 
     matrix = confusion_matrix(
         y_test,
-        predictions
+        predictions,
     )
 
     return {
@@ -65,92 +71,86 @@ def evaluate_model(model, X_test, y_test):
         "PR-AUC": pr_auc,
         "Confusion Matrix": matrix,
         "Predictions": predictions,
-        "Probabilities": probabilities
+        "Probabilities": probabilities,
     }
 
 
-def save_results(results):
-    """Save model comparison results to CSV."""
-
-    os.makedirs("outputs/metrics", exist_ok=True)
+def create_comparison_table(results):
+    """Create a model comparison DataFrame."""
 
     rows = []
 
     for model_name, metrics in results.items():
-        rows.append({
-            "Model": model_name,
-            "Precision": metrics["Precision"],
-            "Recall": metrics["Recall"],
-            "F1 Score": metrics["F1 Score"],
-            "ROC-AUC": metrics["ROC-AUC"],
-            "PR-AUC": metrics["PR-AUC"]
-        })
 
-    results_df = pd.DataFrame(rows)
+        rows.append(
+            {
+                "Model": model_name,
+                "Precision": metrics["Precision"],
+                "Recall": metrics["Recall"],
+                "F1 Score": metrics["F1 Score"],
+                "ROC-AUC": metrics["ROC-AUC"],
+                "PR-AUC": metrics["PR-AUC"],
+            }
+        )
 
-    output_path = "outputs/metrics/model_comparison.csv"
+    return pd.DataFrame(rows)
 
-    results_df.to_csv(
-        output_path,
+
+def save_results(results, path):
+    """Save model comparison results."""
+
+    comparison = create_comparison_table(
+        results
+    )
+
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    comparison.to_csv(
+        path,
         index=False
     )
 
-    print(f"\nModel comparison saved to: {output_path}")
+    print(
+        f"\nModel comparison saved to: {path}"
+    )
 
-    return results_df
+    return comparison
 
 
 def print_results(results):
-    """Print detailed evaluation results."""
+    """Print evaluation results."""
 
     for model_name, metrics in results.items():
 
-        print("\n========================================")
+        print("\n" + "=" * 50)
         print(model_name)
-        print("========================================")
+        print("=" * 50)
 
-        print(f"Precision : {metrics['Precision']:.4f}")
-        print(f"Recall    : {metrics['Recall']:.4f}")
-        print(f"F1 Score  : {metrics['F1 Score']:.4f}")
-        print(f"ROC-AUC   : {metrics['ROC-AUC']:.4f}")
-        print(f"PR-AUC    : {metrics['PR-AUC']:.4f}")
-
-        print("\nConfusion Matrix:")
-        print(metrics["Confusion Matrix"])
-
-
-def main():
-    print("\n==============================")
-    print("MODEL EVALUATION")
-    print("==============================")
-
-    df = load_data("data/processed/cleaned.csv")
-
-    X_train, X_test, y_train, y_test = prepare_data(df)
-
-    models = train_models(
-        X_train,
-        y_train
-    )
-
-    results = {}
-
-    for model_name, model in models.items():
-
-        print(f"\nEvaluating {model_name}...")
-
-        results[model_name] = evaluate_model(
-            model,
-            X_test,
-            y_test
+        print(
+            f"Precision : {metrics['Precision']:.4f}"
         )
 
-    print_results(results)
+        print(
+            f"Recall    : {metrics['Recall']:.4f}"
+        )
 
-    results_df = save_results(results)
+        print(
+            f"F1 Score  : {metrics['F1 Score']:.4f}"
+        )
 
-    return results, results_df
+        print(
+            f"ROC-AUC   : {metrics['ROC-AUC']:.4f}"
+        )
 
+        print(
+            f"PR-AUC    : {metrics['PR-AUC']:.4f}"
+        )
 
-if __name__ == "__main__":
-    main()
+        print("\nConfusion Matrix:")
+
+        print(
+            metrics["Confusion Matrix"]
+        )
