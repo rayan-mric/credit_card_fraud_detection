@@ -1,97 +1,60 @@
 import pandas as pd
+import numpy as np
 
 from sklearn.model_selection import train_test_split
-
-from src.config import (
-    RAW_DATA_PATH,
-    RANDOM_STATE,
-    TEST_SIZE,
-)
+from sklearn.preprocessing import StandardScaler
 
 
-def load_data(path=RAW_DATA_PATH):
-    """Load the credit card fraud dataset."""
-
-    df = pd.read_csv(path)
+def load_data(file_path):
+    """
+    Load the credit card fraud dataset.
+    """
+    df = pd.read_csv(file_path)
 
     return df
 
 
-def preprocess(df):
+def prepare_data(df):
     """
-    Basic data cleaning.
+    Prepare the dataset for machine learning.
 
-    Important:
-    Scaling and SMOTE are NOT performed here.
-    They are handled inside the ML pipeline after splitting
-    the dataset to prevent data leakage.
-    """
-
-    df = df.copy()
-
-    print(f"Original transactions: {len(df):,}")
-
-    before = len(df)
-
-    df = df.drop_duplicates()
-
-    removed = before - len(df)
-
-    print(f"Duplicate transactions removed: {removed:,}")
-    print(f"Remaining transactions: {len(df):,}")
-
-    return df
-
-
-def split_data(df):
-    """
-    Split the dataset into training and testing sets.
-
-    Stratification preserves the fraud/non-fraud ratio.
+    Returns:
+        X_train_scaled
+        X_test_scaled
+        y_train
+        y_test
+        scaler
     """
 
-    if "Class" not in df.columns:
-        raise ValueError("Dataset must contain a 'Class' column.")
+    # Remove rows with missing values
+    df = df.dropna().copy()
 
+    # Separate features and target
     X = df.drop(columns=["Class"])
     y = df["Class"]
 
+    # Split the data
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
     )
 
-    return X_train, X_test, y_train, y_test
+    # Scale the Amount column
+    scaler = StandardScaler()
 
+    X_train = X_train.copy()
+    X_test = X_test.copy()
 
-def save_cleaned_data(df, path):
-    """Save cleaned dataset."""
+    if "Amount" in X_train.columns:
+        X_train["Amount"] = scaler.fit_transform(
+            X_train[["Amount"]]
+        )
 
-    path.parent.mkdir(parents=True, exist_ok=True)
+        X_test["Amount"] = scaler.transform(
+            X_test[["Amount"]]
+        )
 
-    df.to_csv(path, index=False)
-
-    print(f"Cleaned dataset saved to: {path}")
-
-
-if __name__ == "__main__":
-
-    df = load_data()
-
-    df = preprocess(df)
-
-    save_cleaned_data(
-        df,
-        "data/processed/cleaned.csv"
-    )
-
-    X_train, X_test, y_train, y_test = split_data(df)
-
-    print("\nData split complete.")
-    print(f"Training samples: {len(X_train):,}")
-    print(f"Testing samples: {len(X_test):,}")
-    print(f"Training fraud cases: {y_train.sum():,}")
-    print(f"Testing fraud cases: {y_test.sum():,}")
+    return X_train, X_test, y_train, y_test, scaler
