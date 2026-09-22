@@ -1,39 +1,28 @@
 from pathlib import Path
 
-# Project root
+
+# Project root directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Data
-RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "creditcard.csv"
-PROCESSED_DATA_PATH = BASE_DIR / "data" / "processed" / "cleaned.csv"
+# Data paths
+DATA_DIR = BASE_DIR / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"
+RAW_DATA_PATH = RAW_DATA_DIR / "creditcard.csv"
 
-# Output folders
-OUTPUT_DIR = BASE_DIR / "outputs"
-CHARTS_DIR = OUTPUT_DIR / "charts"
-METRICS_DIR = OUTPUT_DIR / "metrics"
-REPORTS_DIR = OUTPUT_DIR / "reports"
-
-# Models
+# Model and output directories
 MODELS_DIR = BASE_DIR / "models"
+OUTPUTS_DIR = BASE_DIR / "outputs"
+METRICS_DIR = OUTPUTS_DIR / "metrics"
 
-# Machine learning settings
-RANDOM_STATE = 42
-TEST_SIZE = 0.20
+# Model files
+LOGISTIC_MODEL_PATH = MODELS_DIR / "logistic_regression.pkl"
+RANDOM_FOREST_MODEL_PATH = MODELS_DIR / "random_forest.pkl"
+GRADIENT_BOOSTING_MODEL_PATH = MODELS_DIR / "gradient_boosting.pkl"
 
-# Default prediction threshold
-DEFAULT_THRESHOLD = 0.50
+# Evaluation results
+MODEL_COMPARISON_PATH = METRICS_DIR / "model_comparison.csv"
 
 
-def create_directories():
-    """Create required project directories."""
-
-    directories = [
-        PROCESSED_DATA_PATH.parent,
-        CHARTS_DIR,
-        METRICS_DIR,
-        REPORTS_DIR,
-        MODELS_DIR,
-    ]
-
-    for directory in directories:
-        directory.mkdir(parents=True, exist_ok=True)
+# Create directories if they do not exist
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
+METRICS_DIR.mkdir(parents=True, exist_ok=True)
